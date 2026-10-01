@@ -1,5 +1,113 @@
 # Mobile Application Traffic Capture
 
+## 1. HTTP Toolkit — Android Traffic Capture
+
+**HTTP Toolkit** can be used to intercept and inspect HTTP/HTTPS traffic from an Android device during an authorized mobile application security assessment.
+
+> **Student plan:** If you have access to HTTP Toolkit's student offer, the availability and duration of the student membership are subject to the current HTTP Toolkit student program terms.
+
+### Prerequisites
+
+- Android physical device or emulator
+- HTTP Toolkit installed on the laptop/PC
+- HTTP Toolkit Android app from the Google Play Store
+- USB cable **or** Wi-Fi connection
+- Device and computer on the same network when using Wi-Fi
+- Authorized application/test environment
+
+### Method A — Connect Android Device Using USB
+
+1. Download and install **HTTP Toolkit** on the laptop/PC.
+2. Open HTTP Toolkit.
+3. On the Android device, enable **Developer Options**:
+   - Go to **Settings → About Phone**.
+   - Tap **Build Number** several times until Developer Options are enabled.
+4. Open **Developer Options** and enable **USB Debugging**.
+5. Connect the Android device to the computer using a USB cable.
+6. If prompted on the Android device, allow **USB debugging** for the computer.
+7. In HTTP Toolkit, select the Android device interception option.
+8. Follow the setup instructions displayed by HTTP Toolkit.
+9. Install the HTTP Toolkit CA certificate on the test device when prompted.
+10. Open the target application.
+11. Perform the required actions in the application.
+12. Verify the captured requests in HTTP Toolkit.
+
+### Method B — Connect Android Device Over Wi-Fi
+
+1. Connect the Android device and computer to the **same Wi-Fi network**.
+2. Open HTTP Toolkit on the computer.
+3. Select the Android interception option.
+4. Install/open the HTTP Toolkit Android application from the **Google Play Store**.
+5. Follow the pairing instructions displayed by HTTP Toolkit.
+6. Enter/approve the pairing information if HTTP Toolkit requests it.
+7. Install and trust the HTTP Toolkit CA certificate when prompted.
+8. Start the target application.
+9. Perform the required actions.
+10. Verify the captured requests in HTTP Toolkit.
+
+### Method C — Android Emulator
+
+1. Start the Android emulator.
+2. Start HTTP Toolkit on the computer.
+3. Select the Android interception option.
+4. Connect/configure the emulator according to HTTP Toolkit's displayed instructions.
+5. Install the required CA certificate.
+6. Launch the target application.
+7. Perform API-related actions.
+8. Verify the requests in HTTP Toolkit.
+
+### What to Check
+
+Once traffic is captured, verify:
+
+- HTTP/HTTPS requests
+- Request URL
+- HTTP method
+- Request headers
+- Request parameters
+- Request body
+- Response status code
+- Response headers
+- Response body
+- Cookies
+- Authorization headers
+- API endpoints
+- TLS/certificate information
+
+### If HTTPS Traffic Is Not Captured
+
+Check:
+
+1. Confirm the HTTP Toolkit CA certificate is installed correctly.
+2. Confirm the device is actually connected to HTTP Toolkit.
+3. Check whether the application uses **certificate pinning**.
+4. Check whether the application uses a custom `TrustManager`.
+5. Check whether the application bypasses the configured proxy.
+6. Compare the traffic with a browser on the same device.
+7. Use `tcpdump`/Wireshark to determine whether the application is generating network traffic.
+
+> Installing a user CA certificate does not automatically make every Android application trust it. Applications can use their own trust configuration or certificate pinning.
+
+### VAPT Evidence
+
+For each capture, document:
+
+```text
+Application Name:
+Application Version:
+Android Version:
+Device:
+Capture Method: HTTP Toolkit
+Connection: USB / Wi-Fi / Emulator
+Certificate Installed: Yes / No
+Certificate Pinning: Yes / No / Not Tested
+API Endpoint:
+HTTP Method:
+Request:
+Response:
+Status Code:
+```
+
 A practical reference for capturing and analyzing HTTP/HTTPS traffic during authorized Android mobile application security testing.
 
 > **Scope:** Use these techniques only on applications/devices you are authorized to test.
