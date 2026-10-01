@@ -112,7 +112,195 @@ A practical reference for capturing and analyzing HTTP/HTTPS traffic during auth
 
 > **Scope:** Use these techniques only on applications/devices you are authorized to test.
 
-## 1. Burp Suite with Android Wi-Fi Proxy
+## 16. HTTP Toolkit + Frida — HTTPS Traffic Capture with Runtime Pinning Assessment
+
+This method combines **HTTP Toolkit** for request/response interception with **Frida** for authorized runtime analysis when the application uses certificate pinning or custom certificate validation.
+
+> **Use only on applications and devices you are authorized to test.** Frida should be used to assess the application's runtime behavior, not to weaken production security.
+
+### When to use
+
+- HTTP Toolkit is connected but HTTPS requests are not visible.
+- The application appears to use certificate pinning.
+- A custom `TrustManager` or certificate validation method may be present.
+- You need to confirm whether the application enforces certificate validation at runtime.
+- You need to inspect API requests after an authorized pinning assessment.
+
+### Prerequisites
+
+- HTTP Toolkit installed on the tester machine
+- HTTP Toolkit Android setup completed
+- Android physical device or emulator
+- Frida installed on the tester machine
+- Frida server running on a rooted test device, or an approved Frida/Gadget test setup
+- `adb` working correctly
+- Authorized application/test build
+
+### Step 1 — Configure HTTP Toolkit
+
+1. Start **HTTP Toolkit** on the tester machine.
+2. Connect the Android device using USB or Wi-Fi according to the HTTP Toolkit setup.
+3. Install/trust the HTTP Toolkit CA certificate in the authorized test environment.
+4. Confirm that normal HTTP/HTTPS traffic can reach HTTP Toolkit.
+5. Start the target application.
+6. Note whether HTTPS requests appear in HTTP Toolkit.
+
+If HTTPS traffic is already visible, Frida may not be required.
+
+### Step 2 — Verify Frida Connectivity
+
+Check the device:
+
+```bash
+adb devices
+```
+
+Check that Frida can see the device:
+
+```bash
+frida-ps -U
+```
+
+Find the target package:
+
+```bash
+frida-ps -Uai | grep -i <APP_NAME>
+```
+
+For a rooted test device, ensure the compatible **frida-server** is running on the device.
+
+### Step 3 — Start the Application with Frida
+
+For an authorized dynamic-analysis test:
+
+```bash
+frida -U -f <PACKAGE_NAME> -l pinning-test.js
+```
+
+If the application is already running, attach using its process name:
+
+```bash
+frida -U -n <PROCESS_NAME> -l pinning-test.js
+```
+
+### Step 4 — Assess Certificate Validation
+
+During the test, observe whether the application invokes certificate-validation logic such as:
+
+- OkHttp `CertificatePinner`
+- Java `TrustManager`
+- `X509TrustManager`
+- Custom certificate validation methods
+- Network Security Configuration
+- Native TLS/certificate-validation code
+
+A Frida script can be used in an authorized test environment to instrument these methods and determine whether certificate validation is responsible for the failed interception.
+
+### Step 5 — Re-test Traffic in HTTP Toolkit
+
+After applying the approved runtime test instrumentation:
+
+1. Keep HTTP Toolkit running.
+2. Start/attach Frida to the target application.
+3. Launch the required application flow.
+4. Perform the API operation.
+5. Check HTTP Toolkit for the corresponding HTTPS request.
+6. Compare the captured request with the application's expected behavior.
+7. Record whether traffic became visible only after runtime instrumentation.
+
+### Example Frida Test Script
+
+The following example is intended for authorized testing to observe/assess common Android certificate-validation paths:
+
+```javascript
+Java.perform(function () {
+    console.log("[+] Frida attached");
+
+    try {
+        var CertificatePinner = Java.use(
+            "okhttp3.CertificatePinner"
+        );
+
+        CertificatePinner.check.overloads.forEach(function (overload) {
+            overload.implementation = function () {
+                console.log("[*] OkHttp CertificatePinner.check() called");
+                console.log("[*] Host: " + arguments[0]);
+                return;
+            };
+        });
+
+        console.log("[+] OkHttp CertificatePinner hook installed");
+    } catch (e) {
+        console.log("[-] OkHttp CertificatePinner not found: " + e);
+    }
+});
+```
+
+> The example targets a common OkHttp implementation. Applications may use different networking libraries, obfuscation, custom validation, or native code, so the absence of this class does not prove that certificate pinning is not implemented.
+
+### Verify the Result
+
+In HTTP Toolkit, verify:
+
+- Request URL
+- HTTP method
+- Request headers
+- Authorization headers
+- Request body
+- Response status
+- Response headers
+- Response body
+- TLS connection details
+
+Also record whether the traffic was visible:
+
+```text
+Before Frida:
+HTTPS traffic visible: Yes / No
+
+After authorized Frida instrumentation:
+HTTPS traffic visible: Yes / No
+
+Pinning/validation observed:
+Yes / No / Not confirmed
+
+Networking library:
+OkHttp / Android HttpClient / Cronet / Native / Other
+
+Application Version:
+Android Version:
+Device:
+```
+
+### VAPT Evidence
+
+Capture evidence showing:
+
+1. HTTP Toolkit configured and connected to the test device.
+2. HTTPS request failing to appear before runtime instrumentation, if applicable.
+3. Frida attached to the authorized test application.
+4. Certificate-validation/pinning method observed during runtime.
+5. The same API request visible in HTTP Toolkit after the authorized test instrumentation.
+6. Request and response details relevant to the security assessment.
+
+### Troubleshooting
+
+**Frida does not attach**
+- Confirm `adb devices` shows the device.
+- Confirm the Frida client/server versions are compatible.
+- Confirm the application process/package name.
+- Check whether anti-Frida or anti-debugging controls are present.
+
+**HTTP Toolkit still shows no HTTPS traffic**
+- Confirm the device trusts the HTTP Toolkit CA.
+- Check whether the application uses a different network stack.
+- Check for native certificate validation.
+- Check whether the application bypasses the configured proxy.
+- Use `tcpdump`/Wireshark to confirm network activity.
+
+**Important:** A successful Frida-based interception test does not by itself mean the production application is vulnerable. Document the exact build, runtime instrumentation, device state, and security control being assessed.
+
+## 15. Burp Suite with Android Wi-Fi Proxy
 
 ### When to use
 - Standard HTTP/HTTPS traffic interception
@@ -148,7 +336,7 @@ If HTTPS traffic is not visible, check:
 - Certificate pinning
 - Proxy bypass behavior
 
-## 2. Burp Suite with Android Emulator
+## 16. Burp Suite with Android Emulator
 
 Configure the emulator's proxy to point to the host running Burp.
 
@@ -168,7 +356,7 @@ Remove the proxy after testing:
 adb shell settings put global http_proxy :0
 \`\`\`
 
-## 3. ADB-Based Proxy Configuration
+## 15. ADB-Based Proxy Configuration
 
 \`\`\`bash
 adb devices
@@ -182,7 +370,7 @@ Reset:
 adb shell settings put global http_proxy :0
 \`\`\`
 
-## 4. mitmproxy
+## 16. mitmproxy
 
 ### When to use
 - Lightweight interception
@@ -204,7 +392,7 @@ mitmweb -p 8080
 
 Configure the Android device/emulator to use the tester machine as its HTTP proxy and install/trust the mitmproxy CA in the authorized test environment.
 
-## 5. Charles Proxy
+## 15. Charles Proxy
 
 ### When to use
 - GUI-based HTTP/HTTPS inspection
@@ -220,7 +408,7 @@ General workflow:
 5. Launch the application.
 6. Inspect traffic in the Charles session.
 
-## 6. Wireshark / tcpdump — Network-Level Capture
+## 16. Wireshark / tcpdump — Network-Level Capture
 
 These tools capture packets rather than providing an HTTP interception proxy.
 
@@ -260,7 +448,7 @@ ip.addr == <SERVER_IP>
 
 TLS encrypts application data. A packet capture can show connection metadata such as IPs, ports and TLS information, but normally cannot reveal HTTP request/response contents without appropriate decryption material.
 
-## 7. VPN-Based Capture
+## 15. VPN-Based Capture
 
 A VPN-based capture approach can be useful when application traffic does not follow the device's normal HTTP proxy configuration.
 
@@ -274,7 +462,7 @@ Typical workflow:
 
 This can help identify traffic that bypasses conventional Wi-Fi proxy configuration.
 
-## 8. Browser / WebView Traffic
+## 16. Browser / WebView Traffic
 
 For applications containing WebViews:
 
@@ -289,7 +477,7 @@ For Chrome/WebView debugging:
 chrome://inspect
 \`\`\`
 
-## 9. Certificate Pinning
+## 15. Certificate Pinning
 
 If normal proxy interception works for other applications but the target application's HTTPS traffic is not visible, certificate pinning may be involved.
 
@@ -314,7 +502,7 @@ Typical investigation targets include:
 
 > Pinning bypass should be treated as a testing technique, not as a production configuration.
 
-## 10. Frida-Based Traffic Investigation
+## 16. Frida-Based Traffic Investigation
 
 Frida can be used during authorized dynamic analysis to observe application behavior.
 
@@ -342,7 +530,7 @@ frida -U -f <PACKAGE_NAME> -l script.js
 
 Use this approach when proxy-level visibility is insufficient and you need to understand what the application is doing internally.
 
-## 11. Comparing Capture Methods
+## 15. Comparing Capture Methods
 
 | Method | HTTP/HTTPS Content | App Modification | Useful For |
 |---|---|---|---|
@@ -356,7 +544,7 @@ Use this approach when proxy-level visibility is insufficient and you need to un
 | Frida | Can observe internal behavior | No, runtime instrumentation | Dynamic analysis |
 | Objection | Can assist dynamic testing | No, runtime instrumentation | Mobile security testing |
 
-## 12. Recommended Testing Order
+## 16. Recommended Testing Order
 
 For a normal Android VAPT engagement:
 
@@ -369,7 +557,7 @@ For a normal Android VAPT engagement:
 7. **Use tcpdump/Wireshark for network-level visibility**
 8. **Use Frida for deeper runtime investigation when required**
 
-## 13. Troubleshooting Checklist
+## 15. Troubleshooting Checklist
 
 ### No traffic at all
 - Confirm device and tester machine are on the same network.
@@ -395,7 +583,7 @@ For a normal Android VAPT engagement:
 - Inspect the application architecture and cryptographic implementation during authorized testing.
 - Use runtime analysis where appropriate.
 
-## 14. Evidence to Capture During VAPT
+## 16. Evidence to Capture During VAPT
 
 For each traffic-capture test, document:
 
